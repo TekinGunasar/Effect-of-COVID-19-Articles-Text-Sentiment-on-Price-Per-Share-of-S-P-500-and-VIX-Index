@@ -14,22 +14,12 @@ keywords = ["covid","coronavirus","ventilator","virus","covid","covid-19","cases
             "pandemic","containment","spread","vaccine","epidemic","social","quarantine"
             "distancing","mask","face-masks","masks","lockdown"]
 
-
-f = open("covid_article_urls.txt",'w')
 for url in urls:
-    print(url)
-    req = requests.get(url, headers=headers)
-    soup = BeautifulSoup(req.content, 'lxml')
-    links = soup.find_all("a")
-    for link in links:
-        try:
-            if len(link.attrs['class']) == 0:
-                article_title = link.text.lower()
-                for word in article_title.split(" "):
-                    if word in keywords:
-                        f.write(link.attrs['href']+'\n')
-        except:
-            pass
+    date_split = url.split("/")
+    year = month = date_split[len(date_split)-3]
+    month = date_split[len(date_split)-2]
+    day = date_split[len(date_split)-1].split("?")[0]
+    f = open("covid_articles/" + year + "-" + month + "-" + day + ".txt",'w+')
 
 
 
