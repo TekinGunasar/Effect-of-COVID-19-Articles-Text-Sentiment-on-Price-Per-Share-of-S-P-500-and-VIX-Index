@@ -1,6 +1,5 @@
 import nltk
 import random
-from nltk.corpus import movie_reviews
 import pickle
 from nltk.classify.scikitlearn import SklearnClassifier
 
@@ -10,6 +9,8 @@ from sklearn.svm import LinearSVC,NuSVC
 
 from nltk.classify import ClassifierI
 from statistics import mode
+
+from nltk.tokenize import word_tokenize
 
 class VoteClassifier(ClassifierI):
     def __init__(self,*classifiers):
@@ -32,41 +33,49 @@ class VoteClassifier(ClassifierI):
         conf = choice_votes/len(votes)
         return conf
 
+pos = open("positive.txt",'r').read()
+neg = open("negative.txt",'r').read()
+
 documents = []
 
-for category in movie_reviews.categories():
-    for fileid in movie_reviews.fileids(category):
-        documents.append(list((movie_reviews.words(fileid),category)))
+for sent in pos.split('\n'):
+    documents.append((sent,"pos"))
 
-random.shuffle(documents)
+for sent in neg.split('\n'):
+    documents.append((sent,"neg"))
 
 all_words = []
-for w in movie_reviews.words():
+pos_words = word_tokenize(pos)
+neg_words = word_tokenize(neg)
+
+for w in pos_words:
     all_words.append(w.lower())
+
+for w in neg_words:
+    all_words.append(w.lower())
+
 
 all_words = nltk.FreqDist(all_words)
 
-word_features = list(all_words.keys())[:3000]
+word_features = list(all_words.keys())[:5000]
 
 def find_features(document):
-    words = set(document)
+    words = word_tokenize(document)
     features = {}
     for w in word_features:
         features[w] = (w in words)
 
     return features
 
-featuresets = [(find_features(rev),category) for (rev,category) in documents]
+featuresets = [(find_features(sent),category) for (sent,category) in documents]
 
-training_set = featuresets[:1900]
-testing_set = featuresets[1900:]
+random.shuffle(featuresets)
 
-classifier_f = open("naivebayes.pickle","rb")
-classifier = pickle.load(classifier_f)
-classifier_f.close()
+training_set = featuresets[:10000]
+testing_set = featuresets[10000:]
 
-print("Original Naive Bayes Algo accuracy percent:", (nltk.classify.accuracy(classifier,testing_set))*100)
-classifier.show_most_informative_features(15)
+NB_classifier = nltk.NaiveBayesClassifier.train(testing_set)
+print("NB_Classifier Algo accuracy percent:",(nltk.classify.accuracy(NB_classifier,testing_set))*100)
 
 MNB_classifier = SklearnClassifier(MultinomialNB())
 MNB_classifier.train(training_set)
@@ -88,11 +97,7 @@ LinearSVC_classifier = SklearnClassifier(LinearSVC())
 LinearSVC_classifier.train(training_set)
 print("LinearSVC_classifier Algo accuracy percent:", (nltk.classify.accuracy(LinearSVC_classifier,testing_set))*100)
 
-NuSVC_classifier = SklearnClassifier(NuSVC())
-NuSVC_classifier.train(training_set)
-print("NuSVC_classifier Algo accuracy percent:", (nltk.classify.accuracy(NuSVC_classifier,testing_set))*100)
-
-voted_classifier = VoteClassifier(classifier,MNB_classifier,BernoulliNB_classifier,LogisticRegression_classifier,SGD_classifier,LinearSVC_classifier,NuSVC_classifier)
+voted_classifier = VoteClassifier(NB_classifier,MNB_classifier,BernoulliNB_classifier,SGD_classifier,LinearSVC_classifier)
 print("voted_classifier accurcay percent:",nltk.classify.accuracy(voted_classifier,testing_set)*100)
 
 print("Classification:",voted_classifier.classify(testing_set[0][0]),"Confidence %:",voted_classifier.confidence(testing_set[0][0])*100)
