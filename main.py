@@ -1,18 +1,11 @@
 import nltk
-import random
-import pickle
+from nltk.tokenize import word_tokenize
 from nltk.classify.scikitlearn import SklearnClassifier
-
-from sklearn.naive_bayes import MultinomialNB,BernoulliNB
+from sklearn.naive_bayes import BernoulliNB,MultinomialNB
 from sklearn.linear_model import LogisticRegression,SGDClassifier
-from sklearn.svm import LinearSVC,NuSVC
-
-import os
-
 from nltk.classify import ClassifierI
 from statistics import mode
-
-from nltk.tokenize import word_tokenize
+import pickle
 
 class VoteClassifier(ClassifierI):
     def __init__(self,*classifiers):
@@ -35,20 +28,30 @@ class VoteClassifier(ClassifierI):
         conf = choice_votes/len(votes)
         return conf
 
-
-article_summaries = [file for file in os.listdir("covid_articles_summaries")]
 pos = open("positive.txt",'r').read()
 neg = open("negative.txt",'r').read()
 
+acceptable_pos = ['J']
 documents = []
+
+all_words = []
 
 for sent in pos.split('\n'):
     documents.append((sent,"pos"))
+    words = word_tokenize(sent)
+    pos = nltk.pos_tag(words)
+    for word in pos:
+        if word[1][0] in acceptable_pos:
+            all_words.append(word[0].lower())
 
 for sent in neg.split('\n'):
     documents.append((sent,"neg"))
+    words = word_tokenize(sent)
+    pos = nltk.pos_tag(words)
+    for word in pos:
+        if word[1][0] in acceptable_pos:
+            all_words.append(word[0].lower())
 
-all_words = []
 pos_words = word_tokenize(pos)
 neg_words = word_tokenize(neg)
 
@@ -62,8 +65,8 @@ all_words = nltk.FreqDist(all_words)
 
 word_features = list(all_words.keys())[:5000]
 
-def find_features(document):
-    words = word_tokenize(document)
+def find_features(text):
+    words = word_tokenize(text)
     features = {}
     for w in word_features:
         features[w] = (w in words)
@@ -72,21 +75,42 @@ def find_features(document):
 
 featuresets = [(find_features(sent),category) for (sent,category) in documents]
 
-random.shuffle(featuresets)
-
 training_set = featuresets[:10000]
 testing_set = featuresets[10000:]
 
-classifiers = [pickle.load(open("classifiers/"+classifier,"rb"))
-               for classifier in os.listdir("classifiers")]
+NB_classifier = nltk.NaiveBayesClassifier.train(training_set)
+print("NB:", (nltk.classify.accuracy(NB_classifier,testing_set))*100)
+save_NB = open("classifiers/" + "nb.pickle","wb")
+pickle.dump(NB_classifier,save_NB)
+save_NB.close()
 
-voted_classifier = VoteClassifier(classifiers[0],classifiers[1],classifiers[2],classifiers[3],classifiers[4])
+MNB_classifier = SklearnClassifier(MultinomialNB())
+MNB_classifier.train(training_set)
+print("MNB:", (nltk.classify.accuracy(MNB_classifier,testing_set))*100)
+save_MNB = open("classifiers/" + "mnb.pickle")
+pickle.dump(MNB_classifier,save_MNB)
+save_MNB.close()
+
+BNB_classifier = SklearnClassifier.train(BernoulliNB())
+BNB_classifier.train(training_set)
+print("BNB:", (nltk.classify.accuracy(BNB_classifier,testing_set))*100)
+save_BNB = open("classifiers/" + "bnb.pickle")
+pickle.dump(BNB_classifier,save_BNB)
+save_BNB.close()
+
+LR_classifier = SklearnClassifier(LogisticRegression())
+LR_classifier.train(training_set)
+print("LR:", (nltk.classify.accuracy(LR_classifier,testing_set))*100)
+save_LR = open("classifiers/" + "lr.pickle")
+pickle.dump(LR_classifier,save_LR)
+save_LR.close()
 
 
-print("Classification:",voted_classifier.classify(testing_set[0][0]),"Confidence %:",voted_classifier.confidence(testing_set[0][0])*100)
-print("Classification:",voted_classifier.classify(testing_set[1][0]),"Confidence %:",voted_classifier.confidence(testing_set[0][0])*100)
-print("Classification:",voted_classifier.classify(testing_set[2][0]),"Confidence %:",voted_classifier.confidence(testing_set[0][0])*100)
-print("Classification:",voted_classifier.classify(testing_set[3][0]),"Confidence %:",voted_classifier.confidence(testing_set[0][0])*100)
-print("Classification:",voted_classifier.classify(testing_set[4][0]),"Confidence %:",voted_classifier.confidence(testing_set[0][0])*100)
-print("Classification:",voted_classifier.classify(testing_set[5][0]),"Confidence %:",voted_classifier.confidence(testing_set[0][0])*100)
+SGD_classifier = SklearnClassifier(SGDClassifier)
+SGD_classifier.train(training_set)
+print("SGD:", (nltk.classify.accuracy(SGD_classifier,testing_set))*100)
+save_SGD = open("classifiers/" + "sgd.pickle")
+pickle.dump(SGD_classifier,save_SGD)
+save_SGD.close()
+
 
