@@ -7,6 +7,8 @@ from sklearn.naive_bayes import MultinomialNB,BernoulliNB
 from sklearn.linear_model import LogisticRegression,SGDClassifier
 from sklearn.svm import LinearSVC,NuSVC
 
+import os
+
 from nltk.classify import ClassifierI
 from statistics import mode
 
@@ -33,6 +35,8 @@ class VoteClassifier(ClassifierI):
         conf = choice_votes/len(votes)
         return conf
 
+
+article_summaries = [file for file in os.listdir("covid_articles_summaries")]
 pos = open("positive.txt",'r').read()
 neg = open("negative.txt",'r').read()
 
@@ -73,55 +77,11 @@ random.shuffle(featuresets)
 training_set = featuresets[:10000]
 testing_set = featuresets[10000:]
 
-NB_classifier = nltk.NaiveBayesClassifier.train(testing_set)
-print("NB_Classifier Algo accuracy percent:",(nltk.classify.accuracy(NB_classifier,testing_set))*100)
+classifiers = [pickle.load(open("classifiers/"+classifier,"rb"))
+               for classifier in os.listdir("classifiers")]
 
-save_NB_classifier = open("classifiers/naivebayes.pickle","wb")
-pickle.dump(NB_classifier,save_NB_classifier)
-save_NB_classifier.close()
+voted_classifier = VoteClassifier(classifiers[0],classifiers[1],classifiers[2],classifiers[3],classifiers[4])
 
-MNB_classifier = SklearnClassifier(MultinomialNB())
-MNB_classifier.train(training_set)
-print("MNB_classifier Algo accuracy percent:", (nltk.classify.accuracy(MNB_classifier,testing_set))*100)
-
-save_MNB_classifier = open("classifiers/multinomial_naivebayes.pickle","wb")
-pickle.dump(MNB_classifier,save_MNB_classifier)
-save_MNB_classifier.close()
-
-BernoulliNB_classifier = SklearnClassifier(BernoulliNB())
-BernoulliNB_classifier.train(training_set)
-print("BernoulliNB_classifier Algo accuracy percent:", (nltk.classify.accuracy(BernoulliNB_classifier,testing_set))*100)
-
-save_BNB_classifier = open("classifiers/bernoulli_naivebayes.pickle","wb")
-pickle.dump(BernoulliNB_classifier,save_BNB_classifier)
-save_BNB_classifier.close()
-
-LogisticRegression_classifier = SklearnClassifier(LogisticRegression())
-LogisticRegression_classifier.train(training_set)
-print("LogisticRegression_classifier Algo accuracy percent:", (nltk.classify.accuracy(LogisticRegression_classifier,testing_set))*100)
-
-save_LR_classifier = open("classifiers/logistic_regression.pickle","wb")
-pickle.dump(LogisticRegression_classifier,save_LR_classifier)
-save_LR_classifier.close()
-
-SGD_classifier = SklearnClassifier(SGDClassifier())
-SGD_classifier.train(training_set)
-print("SGD_classifier Algo accuracy percent:", (nltk.classify.accuracy(SGD_classifier,testing_set))*100)
-
-save_SGD_classifier = open("classifiers/stochastic_gradient_descent.pickle","wb")
-pickle.dump(SGD_classifier,save_SGD_classifier)
-save_SGD_classifier.close()
-
-LinearSVC_classifier = SklearnClassifier(LinearSVC())
-LinearSVC_classifier.train(training_set)
-print("LinearSVC_classifier Algo accuracy percent:", (nltk.classify.accuracy(LinearSVC_classifier,testing_set))*100)
-
-save_LSVC_classifier = open("classifiers/linear_support_vector.pickle","wb")
-pickle.dump(LinearSVC_classifier,save_LSVC_classifier)
-save_LSVC_classifier.close()
-
-voted_classifier = VoteClassifier(NB_classifier,MNB_classifier,BernoulliNB_classifier,SGD_classifier,LinearSVC_classifier)
-print("voted_classifier accurcay percent:",nltk.classify.accuracy(voted_classifier,testing_set)*100)
 
 print("Classification:",voted_classifier.classify(testing_set[0][0]),"Confidence %:",voted_classifier.confidence(testing_set[0][0])*100)
 print("Classification:",voted_classifier.classify(testing_set[1][0]),"Confidence %:",voted_classifier.confidence(testing_set[0][0])*100)
